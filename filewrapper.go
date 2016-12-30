@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-var szAppRootPath string
+var appRootPath string
 
 func init() {
 	SetAppRootPath("")
@@ -34,18 +34,18 @@ func SetAppRootPath(path string) bool {
 
 	if path != "" {
 		if FormatFilePath(&path); IsFileExisted(path) {
-			szAppRootPath = path
+			appRootPath = path
 			return true
 		}
 	}
 
 	if path, err = filepath.Abs(filepath.Dir(os.Args[0])); err != nil {
-		szAppRootPath = ""
+		appRootPath = ""
 		return false
 	}
 
 	if FormatFilePath(&path); IsFileExisted(path) {
-		szAppRootPath = path
+		appRootPath = path
 		return true
 	}
 
@@ -54,5 +54,5 @@ func SetAppRootPath(path string) bool {
 
 // GetAppRootPath : a function wrapper to get current application path
 func GetAppRootPath() string {
-	return szAppRootPath
+	return appRootPath
 }
