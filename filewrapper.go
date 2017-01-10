@@ -1,6 +1,7 @@
 package goblazer
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,6 +20,16 @@ func IsFileExisted(szFilePath string) bool {
 		return false
 	}
 	return true
+}
+
+// IsFileDirectory :
+func IsFileDirectory(szFilePath string) bool {
+	fi, err := os.Stat(szFilePath)
+	if os.IsNotExist(err) {
+		fmt.Printf("File not existed - %s\n", szFilePath)
+		return false
+	}
+	return fi.IsDir()
 }
 
 // FormatFilePath : a function wrapper to format path to "a/b/c/d"
