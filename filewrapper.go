@@ -38,6 +38,16 @@ func FormatFilePath(path *string) {
 	*path = strings.Trim(*path, "/ ")
 }
 
+// GetPathName : a function wrapper to get name from a path. eg: if path is "a/b/c/d/", it will return "d" string
+func GetPathName(path string) string {
+	FormatFilePath(&path)
+	idx := strings.LastIndex(path, "/")
+	if idx < 0 {
+		idx = 0
+	}
+	return path[idx:len(path)]
+}
+
 // SetAppRootPath : a function wrapper to set current application base path, if parameter 'path' is nil or "",
 // 					it will fetch base path by current executable program.
 func SetAppRootPath(path string) bool {
