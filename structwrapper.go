@@ -12,9 +12,11 @@ func GetStructFieldNum(s interface{}) uint32 {
 		panic("Unexpected Data Type")
 	}
 
-	for i := 0; i < o.NumField(); i++ {
-		if o.Field(i).Kind() == reflect.Struct {
-			fieldNum += GetStructFieldNum(o.Field(i).Interface())
+	count := o.NumField()
+	for i := 0; i < count; i++ {
+		v := o.Field(i)
+		if v.Kind() == reflect.Struct {
+			fieldNum += GetStructFieldNum(v.Interface())
 			continue
 		}
 
@@ -35,14 +37,44 @@ func GetStructFieldNames(s interface{}) []string {
 		panic("Unexpected Data Type")
 	}
 
-	for i := 0; i < o.NumField(); i++ {
-		if o.Field(i).Kind() == reflect.Struct {
-			sub := GetStructFieldNames(o.Field(i).Interface())
+	count := o.NumField()
+	for i := 0; i < count; i++ {
+		v := o.Field(i)
+
+		if v.Kind() == reflect.Struct {
+			sub := GetStructFieldNames(v.Interface())
 			ret = append(ret, sub...)
 			continue
 		}
 
 		ret = append(ret, t.Field(i).Name)
+	}
+
+	return ret
+}
+
+// GetStructFieldTags :
+func GetStructFieldTags(s interface{}) []string {
+	var ret []string
+
+	t := reflect.TypeOf(s)
+	o := reflect.ValueOf(s)
+
+	if o.Kind() != reflect.Struct {
+		panic("Unexpected Data Type")
+	}
+
+	count := o.NumField()
+	for i := 0; i < count; i++ {
+		v := o.Field(i)
+
+		if v.Kind() == reflect.Struct {
+			sub := GetStructFieldTags(v.Interface())
+			ret = append(ret, sub...)
+			continue
+		}
+
+		ret = append(ret, string(t.Field(i).Tag))
 	}
 
 	return ret
