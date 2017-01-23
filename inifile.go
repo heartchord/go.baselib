@@ -6,6 +6,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/henrylee2cn/mahonia"
 )
 
 // IniFileKeyNode :
@@ -52,8 +54,8 @@ func NewIniFile() *IniFile {
 }
 
 // Load :
-func (f *IniFile) Load(filePath string) bool {
-	var ok bool
+func (f *IniFile) Load(filePath string, code string) bool {
+	var ok, isutf8 bool
 	var fi *os.File
 	var err error
 	var buff []byte
@@ -77,8 +79,15 @@ func (f *IniFile) Load(filePath string) bool {
 		return false
 	}
 
+	isutf8 = strings.EqualFold(code, "utf8")
+	if !isutf8 {
+		code = strings.ToUpper(code)
+		mdecoder := mahonia.NewDecoder(code)
+		buff = []byte(mdecoder.ConvertString(string(buff)))
+	}
+
 	size = int64(len(buff))
-	if info.Size() != size {
+	if isutf8 && info.Size() != size {
 		return false
 	}
 
@@ -92,7 +101,7 @@ func (f *IniFile) PrintSections() {
 		fmt.Printf("[Section Node %d] ID = %d, Name = %s\n", secID, secNode.ID, secNode.Name)
 
 		for keyID, keyNode := range f.SecNodes[secID].KeyNodes {
-			fmt.Printf("<Section Node %d> ID = %d, Name = %s, Value = %s\n", keyID, keyNode.ID, keyNode.Name, keyNode.Value)
+			fmt.Printf("<Key Node %d> ID = %d, Name = %s, Value = %s\n", keyID, keyNode.ID, keyNode.Name, keyNode.Value)
 		}
 	}
 }
@@ -134,7 +143,7 @@ func (f *IniFile) RemoveSection(sec string) {
 func (f *IniFile) ClearKey(sec string, key string) {
 	id := f.formatSectionName(&sec)
 	if secNode, ok := f.SecNodes[id]; ok {
-		id = SimpleHashString2ID(&key)
+		id = SimpleHashString2ID(key)
 		if keyNode, ok := secNode.KeyNodes[id]; ok {
 			keyNode.Value = ""
 		}
@@ -145,7 +154,7 @@ func (f *IniFile) ClearKey(sec string, key string) {
 func (f *IniFile) RemoveKey(sec string, key string) {
 	id := f.formatSectionName(&sec)
 	if secNode, ok := f.SecNodes[id]; ok {
-		id = SimpleHashString2ID(&key)
+		id = SimpleHashString2ID(key)
 		if _, ok := secNode.KeyNodes[id]; ok {
 			delete(secNode.KeyNodes, id)
 		}
@@ -160,6 +169,26 @@ func (f *IniFile) GetString(sec string, key string, dflt string) string {
 	return dflt
 }
 
+// SetString :
+func (f *IniFile) SetString(sec string, key string, val string) bool {
+	return f.setKeyValue(sec, key, val)
+}
+
+// GetStrings :
+func (f *IniFile) GetStrings(sec string, key string, sep string) []string {
+	var ret []string
+	if s, ok := f.getKeyValue(sec, key); ok {
+		ret = strings.Split(s, sep)
+	}
+	return ret
+}
+
+// SetStrings :
+func (f *IniFile) SetStrings(sec string, key string, val []string, sep string) bool {
+	s := strings.Join(val, sep)
+	return f.setKeyValue(sec, key, s)
+}
+
 // GetInt :
 func (f *IniFile) GetInt(sec string, key string, dflt int) int {
 	if s, ok := f.getKeyValue(sec, key); ok {
@@ -168,6 +197,29 @@ func (f *IniFile) GetInt(sec string, key string, dflt int) int {
 		}
 	}
 	return dflt
+}
+
+// SetInt :
+func (f *IniFile) SetInt(sec string, key string, val int) bool {
+	s := strconv.Itoa(val)
+	return f.setKeyValue(sec, key, s)
+}
+
+// GetInts :
+func (f *IniFile) GetInts(sec string, key string, sep string) []int {
+	var ret []int
+	if s, ok := f.getKeyValue(sec, key); ok {
+		strs := strings.Split(s, sep)
+		ret = StrSliceToIntSlice(strs)
+	}
+	return ret
+}
+
+// SetInts :
+func (f *IniFile) SetInts(sec string, key string, val []int, sep string) bool {
+	strs := IntSliceToStrSlice(val)
+	s := strings.Join(strs, sep)
+	return f.setKeyValue(sec, key, s)
 }
 
 // GetInt32 :
@@ -180,6 +232,29 @@ func (f *IniFile) GetInt32(sec string, key string, dflt int32) int32 {
 	return dflt
 }
 
+// SetInt32 is
+func (f *IniFile) SetInt32(sec string, key string, val int32) bool {
+	s := strconv.FormatInt(int64(val), 10)
+	return f.setKeyValue(sec, key, s)
+}
+
+// GetInt32s :
+func (f *IniFile) GetInt32s(sec string, key string, sep string) []int32 {
+	var ret []int32
+	if s, ok := f.getKeyValue(sec, key); ok {
+		strs := strings.Split(s, sep)
+		ret = StrSliceToInt32Slice(strs)
+	}
+	return ret
+}
+
+// SetInt32s :
+func (f *IniFile) SetInt32s(sec string, key string, val []int32, sep string) bool {
+	strs := Int32SliceToStrSlice(val)
+	s := strings.Join(strs, sep)
+	return f.setKeyValue(sec, key, s)
+}
+
 // GetInt64 :
 func (f *IniFile) GetInt64(sec string, key string, dflt int64) int64 {
 	if s, ok := f.getKeyValue(sec, key); ok {
@@ -188,6 +263,126 @@ func (f *IniFile) GetInt64(sec string, key string, dflt int64) int64 {
 		}
 	}
 	return dflt
+}
+
+// SetInt64 is
+func (f *IniFile) SetInt64(sec string, key string, val int64) bool {
+	s := strconv.FormatInt(val, 10)
+	return f.setKeyValue(sec, key, s)
+}
+
+// GetInt64s :
+func (f *IniFile) GetInt64s(sec string, key string, sep string) []int64 {
+	var ret []int64
+	if s, ok := f.getKeyValue(sec, key); ok {
+		strs := strings.Split(s, sep)
+		ret = StrSliceToInt64Slice(strs)
+	}
+	return ret
+}
+
+// SetInt64s :
+func (f *IniFile) SetInt64s(sec string, key string, val []int64, sep string) bool {
+	strs := Int64SliceToStrSlice(val)
+	s := strings.Join(strs, sep)
+	return f.setKeyValue(sec, key, s)
+}
+
+// GetFloat32 :
+func (f *IniFile) GetFloat32(sec string, key string, dflt float32) float32 {
+	if s, ok := f.getKeyValue(sec, key); ok {
+		if v, err := strconv.ParseFloat(s, 32); err == nil {
+			return float32(v)
+		}
+	}
+	return dflt
+}
+
+// SetFloat32 is
+func (f *IniFile) SetFloat32(sec string, key string, val float32) bool {
+	s := strconv.FormatFloat(float64(val), 'f', 30, 32)
+	return f.setKeyValue(sec, key, s)
+}
+
+// GetFloat32s :
+func (f *IniFile) GetFloat32s(sec string, key string, sep string) []float32 {
+	var ret []float32
+	if s, ok := f.getKeyValue(sec, key); ok {
+		strs := strings.Split(s, sep)
+		ret = StrSliceToFloat32Slice(strs)
+	}
+	return ret
+}
+
+// SetFloat32s :
+func (f *IniFile) SetFloat32s(sec string, key string, val []float32, sep string) bool {
+	strs := Float32SliceToStrSlice(val)
+	s := strings.Join(strs, sep)
+	return f.setKeyValue(sec, key, s)
+}
+
+// GetFloat64 :
+func (f *IniFile) GetFloat64(sec string, key string, dflt float64) float64 {
+	if s, ok := f.getKeyValue(sec, key); ok {
+		if v, err := strconv.ParseFloat(s, 64); err == nil {
+			return v
+		}
+	}
+	return dflt
+}
+
+// SetFloat64 is
+func (f *IniFile) SetFloat64(sec string, key string, val float64) bool {
+	s := strconv.FormatFloat(val, 'f', 62, 64)
+	return f.setKeyValue(sec, key, s)
+}
+
+// GetFloat64s :
+func (f *IniFile) GetFloat64s(sec string, key string, sep string) []float64 {
+	var ret []float64
+	if s, ok := f.getKeyValue(sec, key); ok {
+		strs := strings.Split(s, sep)
+		ret = StrSliceToFloat64Slice(strs)
+	}
+	return ret
+}
+
+// SetFloat64s :
+func (f *IniFile) SetFloat64s(sec string, key string, val []float64, sep string) bool {
+	strs := Float64SliceToStrSlice(val)
+	s := strings.Join(strs, sep)
+	return f.setKeyValue(sec, key, s)
+}
+
+// GetBool :
+func (f *IniFile) GetBool(sec string, key string, dflt bool) bool {
+	if s, ok := f.getKeyValue(sec, key); ok {
+		return IsTrueString(s)
+	}
+	return dflt
+}
+
+// SetBool :
+func (f *IniFile) SetBool(sec string, key string, val bool) bool {
+	s := GetBoolString(val)
+	return f.setKeyValue(sec, key, s)
+}
+
+// GetBools :
+func (f *IniFile) GetBools(sec string, key string, sep string) []bool {
+	var ret []bool
+	if s, ok := f.getKeyValue(sec, key); ok {
+		strs := strings.Split(s, sep)
+		ret = StrSliceToBoolSlice(strs)
+	}
+	return ret
+}
+
+// SetBools :
+func (f *IniFile) SetBools(sec string, key string, val []bool, sep string) bool {
+	strs := BoolSliceToStrSlice(val)
+	s := strings.Join(strs, sep)
+	return f.setKeyValue(sec, key, s)
 }
 
 func (f *IniFile) createLinks(buff []byte, size int64) {
@@ -302,7 +497,7 @@ func (f *IniFile) setKeyValue(sec string, key string, val string) bool {
 	}
 
 	// 查找对应的Key Node
-	id = SimpleHashString2ID(&key)
+	id = SimpleHashString2ID(key)
 	if keyNode, ok = secNode.KeyNodes[id]; !ok {
 		// 如果Key Node不存在
 		keyNode = newIniFileKeyNode(id, key, val)
@@ -322,15 +517,16 @@ func (f *IniFile) formatSectionName(sec *string) uint32 {
 
 	l := len(*sec)
 	if (*sec)[l-1] != ']' {
-		*sec = JoinStrings([]string{"]", *sec})
+		*sec = JoinStrings([]string{*sec, "]"})
 	}
 
-	return SimpleHashString2ID(sec)
+	return SimpleHashString2ID(*sec)
 }
 
 func (f *IniFile) getKeyValue(sec string, key string) (string, bool) {
 	id := f.formatSectionName(&sec)
 	if secNode, ok := f.SecNodes[id]; ok {
+		id := SimpleHashString2ID(key)
 		if keyNode, ok := secNode.KeyNodes[id]; ok {
 			return keyNode.Value, true
 		}
