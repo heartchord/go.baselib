@@ -1,9 +1,11 @@
 package goblazer
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -15,35 +17,98 @@ type IniFileKeyNode struct {
 	ID    uint32 // id of key-value node
 	Name  string // key name of key-value node
 	Value string // key value of key-value node
+	SeqNo uint32 // sequence number
 }
 
-func newIniFileKeyNode(id uint32, name string, value string) *IniFileKeyNode {
+func newIniFileKeyNode(id uint32, name string, value string, no uint32) *IniFileKeyNode {
 	n := new(IniFileKeyNode)
 	n.ID = id
 	n.Name = name
 	n.Value = value
+	n.SeqNo = no
 	return n
+}
+
+// KeyNodesMap :
+type KeyNodesMap map[uint32]*IniFileKeyNode
+
+// KeyNodesMapSorter :
+type KeyNodesMapSorter []*IniFileKeyNode
+
+// NewKeyNodesMapSorter :
+func NewKeyNodesMapSorter(m KeyNodesMap) KeyNodesMapSorter {
+	ms := make(KeyNodesMapSorter, 0, len(m))
+
+	for _, v := range m {
+		ms = append(ms, v)
+	}
+
+	return ms
+}
+
+func (ms KeyNodesMapSorter) Len() int {
+	return len(ms)
+}
+
+func (ms KeyNodesMapSorter) Less(i, j int) bool {
+	return ms[i].SeqNo < ms[j].SeqNo
+}
+
+func (ms KeyNodesMapSorter) Swap(i, j int) {
+	ms[i], ms[j] = ms[j], ms[i]
 }
 
 // IniFileSecNode :
 type IniFileSecNode struct {
-	ID       uint32                     // id of section
-	Name     string                     // section name
-	KeyNodes map[uint32]*IniFileKeyNode // all keys of a section
+	ID       uint32      // id of section
+	Name     string      // section name
+	SeqNo    uint32      // sequence number
+	KeyNodes KeyNodesMap // all keys of a section
 }
 
-func newIniFileSecNode(id uint32, name string) *IniFileSecNode {
+func newIniFileSecNode(id uint32, name string, no uint32) *IniFileSecNode {
 	n := new(IniFileSecNode)
 	n.ID = id
 	n.Name = name
+	n.SeqNo = no
 	n.KeyNodes = make(map[uint32]*IniFileKeyNode)
 	return n
 }
 
+// SecNodesMap :
+type SecNodesMap map[uint32]*IniFileSecNode
+
+// SecNodesMapSorter :
+type SecNodesMapSorter []*IniFileSecNode
+
+// NewSecNodesMapSorter :
+func NewSecNodesMapSorter(m SecNodesMap) SecNodesMapSorter {
+	ms := make(SecNodesMapSorter, 0, len(m))
+
+	for _, v := range m {
+		ms = append(ms, v)
+	}
+
+	return ms
+}
+
+func (ms SecNodesMapSorter) Len() int {
+	return len(ms)
+}
+
+func (ms SecNodesMapSorter) Less(i, j int) bool {
+	return ms[i].SeqNo < ms[j].SeqNo
+}
+
+func (ms SecNodesMapSorter) Swap(i, j int) {
+	ms[i], ms[j] = ms[j], ms[i]
+}
+
 // IniFile :
 type IniFile struct {
-	SecNodes map[uint32]*IniFileSecNode
-	offset   int64
+	SecNodes     SecNodesMap
+	offset       int64
+	seqNoCounter uint32
 }
 
 // NewIniFile :
@@ -92,6 +157,52 @@ func (f *IniFile) Load(filePath string, code string) bool {
 	}
 
 	f.createLinks(buff, size)
+	return true
+}
+
+// Save :
+func (f *IniFile) Save(filePath string, code string) bool {
+	var ok, isutf8 bool
+	var err error
+	var buff bytes.Buffer
+	var str string
+	var fi *os.File
+
+	secms := NewSecNodesMapSorter(f.SecNodes)
+	sort.Sort(secms)
+
+	for _, sec := range secms {
+		buff.WriteString(fmt.Sprintf("%s\r\n", sec.Name))
+
+		keyms := NewKeyNodesMapSorter(sec.KeyNodes)
+		sort.Sort(keyms)
+
+		for _, key := range keyms {
+			buff.WriteString(fmt.Sprintf("%s%s%s\r\n", key.Name, "=", key.Value))
+		}
+
+		buff.WriteString("\r\n")
+	}
+
+	str = buff.String()
+	isutf8 = strings.EqualFold(code, "utf8")
+	if !isutf8 {
+		code = strings.ToUpper(code)
+		mencoder := mahonia.NewEncoder(code)
+		if str, ok = mencoder.ConvertStringOK(str); !ok {
+			return false
+		}
+	}
+
+	if fi, err = os.Create(filePath); err != nil {
+		return false
+	}
+	defer fi.Close()
+
+	if _, err = fi.WriteString(str); err != nil {
+		return false
+	}
+
 	return true
 }
 
@@ -427,6 +538,7 @@ func (f *IniFile) createLinks(buff []byte, size int64) {
 
 func (f *IniFile) removeLinks() {
 	f.SecNodes = make(map[uint32]*IniFileSecNode)
+	f.seqNoCounter = 0
 }
 
 func (f *IniFile) readLine(buff []byte, size int64) int64 {
@@ -490,8 +602,9 @@ func (f *IniFile) setKeyValue(sec string, key string, val string) bool {
 	id = f.formatSectionName(&sec)
 	if secNode, ok = f.SecNodes[id]; !ok {
 		// 如果Section Node不存在，创建一个
-		secNode = newIniFileSecNode(id, sec)
+		secNode = newIniFileSecNode(id, sec, f.seqNoCounter)
 		f.SecNodes[id] = secNode
+		f.seqNoCounter++
 	} else {
 		// 如果Section Node存在
 	}
@@ -500,8 +613,9 @@ func (f *IniFile) setKeyValue(sec string, key string, val string) bool {
 	id = SimpleHashString2ID(key)
 	if keyNode, ok = secNode.KeyNodes[id]; !ok {
 		// 如果Key Node不存在
-		keyNode = newIniFileKeyNode(id, key, val)
+		keyNode = newIniFileKeyNode(id, key, val, f.seqNoCounter)
 		secNode.KeyNodes[id] = keyNode
+		f.seqNoCounter++
 	} else {
 		// 如果Key Node存在，覆盖旧值
 		secNode.KeyNodes[id].Value = val
