@@ -119,23 +119,14 @@ func NewIniFile() *IniFile {
 }
 
 // Load :
-func (f *IniFile) Load(filePath string, code string) bool {
-	var ok, isutf8 bool
+func (f *IniFile) Load(path string, code string) bool {
+	var ok bool
 	var fi *os.File
 	var err error
 	var buff []byte
-	var info os.FileInfo
 	var size int64
 
-	if info, err = os.Stat(filePath); err != nil {
-		return false
-	}
-
-	if ok = IsFileExisted(filePath); !ok {
-		return false
-	}
-
-	if fi, err = os.Open(filePath); err != nil {
+	if fi, err = os.Open(path); err != nil {
 		return false
 	}
 	defer fi.Close()
@@ -144,18 +135,17 @@ func (f *IniFile) Load(filePath string, code string) bool {
 		return false
 	}
 
-	isutf8 = strings.EqualFold(code, "utf8")
-	if !isutf8 {
-		code = strings.ToUpper(code)
-		mdecoder := mahonia.NewDecoder(code)
-		buff = []byte(mdecoder.ConvertString(string(buff)))
+	if ok = strings.EqualFold(code, "utf8"); !ok {
+		var s string
+		mdecoder := mahonia.NewDecoder(strings.ToUpper(code))
+
+		if s, ok = mdecoder.ConvertStringOK(string(buff)); !ok {
+			return false
+		}
+		buff = []byte(s)
 	}
 
 	size = int64(len(buff))
-	if isutf8 && info.Size() != size {
-		return false
-	}
-
 	f.createLinks(buff, size)
 	return true
 }

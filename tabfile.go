@@ -34,6 +34,11 @@ type TabFile struct {
 	tabs []*tabCell
 }
 
+func NewTabFile() *TabFile {
+	f := new(TabFile)
+	return f
+}
+
 // Load is
 func (f *TabFile) Load(path string, code string) bool {
 	var ok bool
@@ -43,7 +48,6 @@ func (f *TabFile) Load(path string, code string) bool {
 	var size int
 
 	if fi, err = os.Open(path); err != nil {
-		fmt.Println(err)
 		return false
 	}
 	defer fi.Close()
