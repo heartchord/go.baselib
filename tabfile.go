@@ -39,6 +39,14 @@ func NewTabFile() *TabFile {
 	return f
 }
 
+func (f *TabFile) GetRows() int {
+	return f.rows
+}
+
+func (f *TabFile) GetCols() int {
+	return f.cols
+}
+
 // Load is
 func (f *TabFile) Load(path string, code string) bool {
 	var ok bool
@@ -60,10 +68,10 @@ func (f *TabFile) Load(path string, code string) bool {
 		var s string
 		mdecoder := mahonia.NewDecoder(strings.ToUpper(code))
 
-		if s, ok = mdecoder.ConvertStringOK(string(buff)); !ok {
+		if s, ok = mdecoder.ConvertStringOK(BytesToStringByTrans(&buff)); !ok {
 			return false
 		}
-		buff = []byte(s)
+		buff = StringToBytesByTrans(&s)
 	}
 
 	size = len(buff)

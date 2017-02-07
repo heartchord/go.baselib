@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"strconv"
 	"strings"
+	"unsafe"
 )
 
 // TrueStrings is
@@ -42,9 +43,38 @@ func IsFalseString(s string) bool {
 	return false
 }
 
-// CheckStringEmpty :
-func CheckStringEmpty(s string) bool {
-	return len(s) > 0
+// StringToBytesByShare will create a new []byte 'b' shares the data ownership of string 's'.
+func StringToBytesByShare(s string) []byte {
+	return *(*[]byte)(unsafe.Pointer(&s))
+}
+
+// StringToBytesByTrans will create a new []byte 'b' transfers the data ownership of string 's'.
+func StringToBytesByTrans(s *string) []byte {
+	b := *(*[]byte)(unsafe.Pointer(s))
+	*s = ""
+	return b
+}
+
+// StringToBytesByCopys will create a new []byte 'b' copies the data of string 's'.
+func StringToBytesByCopys(s string) []byte {
+	return []byte(s)
+}
+
+// BytesToStringByShare will create a new string 's' shares the data ownership of []byte 'b'.
+func BytesToStringByShare(b []byte) string {
+	return *(*string)(unsafe.Pointer(&b))
+}
+
+// BytesToStringByTrans will create a new string 's' transfers the data ownership of []byte 'b'.
+func BytesToStringByTrans(b *[]byte) string {
+	s := *(*string)(unsafe.Pointer(b))
+	*b = nil
+	return s
+}
+
+// BytesToStringByCopys will create a new string 's' copies the data of []byte 'b'.
+func BytesToStringByCopys(b []byte) string {
+	return string(b)
 }
 
 // JoinStrings :
