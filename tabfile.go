@@ -39,10 +39,12 @@ func NewTabFile() *TabFile {
 	return f
 }
 
+// GetRows returns the number of rows of tab file
 func (f *TabFile) GetRows() int {
 	return f.rows
 }
 
+// GetCols returns the number of columns of tab file
 func (f *TabFile) GetCols() int {
 	return f.cols
 }
