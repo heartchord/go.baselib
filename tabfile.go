@@ -32,6 +32,7 @@ type TabFile struct {
 	tabs []*tabCell
 }
 
+// NewTabFile creates a new TabFile instance.
 func NewTabFile() *TabFile {
 	f := new(TabFile)
 	return f
@@ -494,12 +495,15 @@ func (f *TabFile) SetCell(row int, col int, val string) bool {
 }
 
 func (f *TabFile) createTabOffsets(buff []byte, size int) {
+	//defer TimeCostStatistics(time.Now(), "TabFile.createTabOffsets")
 	f.getRowsAndColumns(buff, size)
 	f.createTabOffsetLinks(buff, size)
 }
 
 func (f *TabFile) createTabOffsetLinks(buff []byte, size int) {
-	var offset, length, start, end int
+	//defer TimeCostStatistics(time.Now(), "TabFile.createTabOffsetLinks")
+
+	var offset, length, start int
 	var str string
 
 	for i := 0; i < f.rows; i++ {
@@ -517,8 +521,7 @@ func (f *TabFile) createTabOffsetLinks(buff []byte, size int) {
 				offset++
 				length++
 			}
-			end = start + length
-			str = string(buff[start:end])
+			str = string(buff[start : start+length])
 			f.tabs[idx] = newTabCell(str)
 
 			// 跳过tab
@@ -536,7 +539,7 @@ func (f *TabFile) createTabOffsetLinks(buff []byte, size int) {
 				}
 
 				// 读到行尾，跳过本行的所有换行回车
-				if offset+2 < size && buff[offset] == 0x0D && buff[offset+1] == 0x0A {
+				if offset+2 < size && buff[offset] == '\r' && buff[offset+1] == '\n' {
 					// \r\n
 					offset += 2
 				} else { // \r or \n
@@ -550,6 +553,8 @@ func (f *TabFile) createTabOffsetLinks(buff []byte, size int) {
 }
 
 func (f *TabFile) getRowsAndColumns(buff []byte, size int) {
+	//defer TimeCostStatistics(time.Now(), "TabFile.getRowsAndColumns")
+
 	var rows, cols, offset int
 
 	for offset < size {
