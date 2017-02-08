@@ -4,7 +4,7 @@ import "testing"
 
 func Test_SimpleHashString2ID_1(t *testing.T) {
 	b := []byte{0xB9, 0xFE, 0xB9, 0xFE} // "哈哈" in GBK code
-	s := BytesToStringByTrans(&b)
+	s := BytesToString(b)
 
 	id1 := SimpleHashString2ID(s)
 	id2 := uint32(3986945288)
@@ -33,8 +33,8 @@ func Test_SimpleHashString2ID_3(t *testing.T) {
 	b1 := []byte{0xB9, 0xFE, 0xB9, 0xFE}       // "哈哈" in GBK code
 	b2 := []byte{0xB9, 0xFE, 0xB9, 0xFE, 0x61} // "哈哈a" in GBK code
 
-	s1 := BytesToStringByTrans(&b1)
-	s2 := BytesToStringByTrans(&b2)
+	s1 := BytesToString(b1)
+	s2 := BytesToString(b2)
 
 	id1 := SimpleHashString2ID(s1)
 	id2 := SimpleHashString2ID(s2)

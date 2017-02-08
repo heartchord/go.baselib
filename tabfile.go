@@ -8,8 +8,6 @@ import (
 	"strings"
 
 	"fmt"
-
-	"github.com/henrylee2cn/mahonia"
 )
 
 type tabCell struct {
@@ -50,8 +48,7 @@ func (f *TabFile) GetCols() int {
 }
 
 // Load is
-func (f *TabFile) Load(path string, code string) bool {
-	var ok bool
+func (f *TabFile) Load(path string) bool {
 	var fi *os.File
 	var err error
 	var buff []byte
@@ -66,16 +63,6 @@ func (f *TabFile) Load(path string, code string) bool {
 		return false
 	}
 
-	if ok = strings.EqualFold(code, "utf8"); !ok {
-		var s string
-		mdecoder := mahonia.NewDecoder(strings.ToUpper(code))
-
-		if s, ok = mdecoder.ConvertStringOK(BytesToStringByTrans(&buff)); !ok {
-			return false
-		}
-		buff = StringToBytesByTrans(&s)
-	}
-
 	size = len(buff)
 	if size > 0 {
 		f.createTabOffsets(buff, size)
@@ -85,12 +72,10 @@ func (f *TabFile) Load(path string, code string) bool {
 }
 
 // Save is
-func (f *TabFile) Save(path string, code string) bool {
-	var ok, isutf8 bool
+func (f *TabFile) Save(path string) bool {
+	var fi *os.File
 	var err error
 	var buff bytes.Buffer
-	var str string
-	var fi *os.File
 
 	for i := 0; i < f.rows; i++ {
 		for j := 0; j < f.cols; j++ {
@@ -103,22 +88,12 @@ func (f *TabFile) Save(path string, code string) bool {
 		}
 	}
 
-	str = buff.String()
-	isutf8 = strings.EqualFold(code, "utf8")
-	if !isutf8 {
-		code = strings.ToUpper(code)
-		mencoder := mahonia.NewEncoder(code)
-		if str, ok = mencoder.ConvertStringOK(str); !ok {
-			return false
-		}
-	}
-
 	if fi, err = os.Create(path); err != nil {
 		return false
 	}
 	defer fi.Close()
 
-	if _, err = fi.WriteString(str); err != nil {
+	if _, err = fi.WriteString(buff.String()); err != nil {
 		return false
 	}
 
