@@ -7,7 +7,6 @@ import (
 
 func Test_MemoryPool(t *testing.T) {
 	mp := NewMemoryPool()
-	mp.InitPool()
 
 	mb, ok := mp.Allocate(4)
 	if ok {
@@ -19,7 +18,6 @@ func Benchmark_MemoryPool(b *testing.B) {
 	b.StopTimer()
 
 	mp := NewMemoryPool()
-	mp.InitPool()
 
 	b.StartTimer()
 
