@@ -18,22 +18,12 @@ func Benchmark_MemoryPool(b *testing.B) {
 	b.StopTimer()
 
 	mp := NewMemoryPool()
+	var mb *MemoryBlock
 
 	b.StartTimer()
 
 	for i := 0; i < b.N; i++ {
-		mb, _ := mp.Allocate(rand.Intn(64 * 1024))
-		//mp.Allocate(rand.Intn(64 * 1024))
+		mb, _ = mp.Allocate(rand.Intn(64 * 1024))
 		mp.Recycle(mb)
 	}
-
-	b.StopTimer()
-	//mp.Statistics()
-
-	//var mem runtime.MemStats
-	//runtime.ReadMemStats(&mem)
-	//fmt.Println(mem.Alloc)
-	//fmt.Println(mem.TotalAlloc)
-	//fmt.Println(mem.HeapAlloc)
-	//fmt.Println(mem.HeapSys)
 }

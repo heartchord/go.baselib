@@ -197,7 +197,7 @@ func (mp *MemoryPool) Allocate(requiredSize int) (*MemoryBlock, bool) {
 }
 
 // Recycle :
-func (p *MemoryPool) Recycle(b *MemoryBlock) bool {
+func (mp *MemoryPool) Recycle(b *MemoryBlock) bool {
 	c := cap(b.Buffer) // 容量
 	l := len(b.Buffer) // 长度
 
@@ -205,7 +205,7 @@ func (p *MemoryPool) Recycle(b *MemoryBlock) bool {
 		return false
 	}
 
-	if blockList, ok := p.blockListMap[l]; ok {
+	if blockList, ok := mp.blockListMap[l]; ok {
 		blockList.recycle(b)
 		return true
 	}
@@ -214,10 +214,10 @@ func (p *MemoryPool) Recycle(b *MemoryBlock) bool {
 }
 
 // Statistics :
-func (p *MemoryPool) Statistics() {
+func (mp *MemoryPool) Statistics() {
 	for i := 0; i < memoryBlockSizeNum; i++ {
 		idx := memoryBlockSizeSet[i]
-		if list, ok := p.blockListMap[idx]; ok {
+		if list, ok := mp.blockListMap[idx]; ok {
 			fmt.Printf("MemoryPool.blockListMap[%d] - new : %d, alloc : %d, recyl : %d\n", idx, list.newOpTimes, list.allocTimes, list.recylTimes)
 		}
 	}
