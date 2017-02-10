@@ -23,7 +23,10 @@ func Benchmark_MemoryPool(b *testing.B) {
 	b.StartTimer()
 
 	for i := 0; i < b.N; i++ {
-		mb, _ = mp.Allocate(rand.Intn(64 * 1024))
+		n := rand.Intn(64 * 1024)
+		mb, _ = mp.Allocate(n)
 		mp.Recycle(mb)
 	}
+
+	//mp.Statistics()
 }

@@ -1,7 +1,8 @@
+// share memory by communicating, don't communicate by sharing memory.
+
 package goblazer
 
 import (
-	"container/list"
 	"fmt"
 	"time"
 )
@@ -41,20 +42,30 @@ var memoryBlockCleanUpTime = time.Second * 5
 
 // MemoryBlock manages an actual memory block.
 type MemoryBlock struct {
-	Length int       // 用户需求内存大小 <=内存块长度len(MemBlock.Buffer) <= 内存块容量cap(MemBlock.Buffer)
-	Buffer []byte    // 用户数据存放缓冲
-	allocT time.Time // 内存块分配时间戳
+	Length    int              // 用户需求内存大小 <=内存块长度len(MemBlock.Buffer) <= 内存块容量cap(MemBlock.Buffer)
+	Buffer    []byte           // 用户数据存放缓冲
+	allocT    time.Time        // 内存块分配时间戳
+	nextBlock *MemoryBlock     // 下一个内存块
+	prevBlock *MemoryBlock     // 上一个内存块
+	blockList *memoryBlockList // 所属内存块链
+}
+
+func (b *MemoryBlock) next() *MemoryBlock {
+	if p := b.nextBlock; b.blockList != nil && p != b.blockList.listRoot {
+		return p
+	}
+	return nil
 }
 
 // newMemoryBlock creates a new MemoryBlock instance.
 func newMemoryBlock(blockSize int) *MemoryBlock {
-	mb := new(MemoryBlock)
+	b := new(MemoryBlock)
 
-	mb.Length = 0
-	mb.Buffer = make([]byte, blockSize) // cap = len
-	mb.allocT = time.Now()
+	b.Buffer = make([]byte, blockSize)
+	b.Length = 0
+	b.allocT = time.Now()
 
-	return mb
+	return b
 }
 
 // reset recovers memory block to initial state
@@ -65,13 +76,53 @@ func (b *MemoryBlock) reset() {
 
 // memoryBlockList stores memory block with same block-size specified by 'memBlockSizeSet'.
 type memoryBlockList struct {
-	blockSize  int               // 管理的每个内存块大小
-	blockList  *list.List        // 管理的实际内存卡链表
+	blockLen   int               // 管理的每个内存块大小
+	listRoot   *MemoryBlock      // 内存块链表根结点
+	listSize   int               //
+	preallocs  int               // 预先分配的内存块个数
 	allocChan  chan *MemoryBlock // 分配内存块的管道
 	recylChan  chan *MemoryBlock // 回收内存块的管道
 	newOpTimes int               // new内存的次数
 	allocTimes int               // 分配内存块次数
 	recylTimes int               // 回收内存块池数
+}
+
+func (l *memoryBlockList) front() *MemoryBlock {
+	if l.listSize == 0 {
+		return nil
+	}
+	return l.listRoot.nextBlock
+}
+
+func (l *memoryBlockList) push(b *MemoryBlock) *MemoryBlock {
+	r := l.listRoot
+
+	if r.nextBlock == nil {
+		r.nextBlock = r
+		r.prevBlock = r
+		l.listSize = 0
+	}
+
+	n := r.nextBlock
+	r.nextBlock = b
+	b.prevBlock = r
+	b.nextBlock = n
+	n.prevBlock = b
+	b.blockList = l
+	l.listSize++
+
+	return b
+}
+
+func (l *memoryBlockList) pop(b *MemoryBlock) {
+	if b.blockList == l {
+		b.prevBlock.nextBlock = b.nextBlock // 断链操作
+		b.nextBlock.prevBlock = b.prevBlock // 断链操作
+		b.nextBlock = nil                   // 避免对象引用造成的内存泄漏
+		b.prevBlock = nil                   // 避免对象引用造成的内存泄漏
+		b.blockList = nil                   // 避免对象引用造成的内存泄漏
+		l.listSize--                        // 长度减一
+	}
 }
 
 // recycle returns the memory block to memory block list.
@@ -92,13 +143,13 @@ func (l *memoryBlockList) workCoroutine() {
 	timeout := time.NewTimer(memoryBlockCleanUpTime)
 
 	for {
-		if l.blockList.Len() == 0 {
-			b := newMemoryBlock(l.blockSize)
-			l.blockList.PushFront(b)
+		if l.listSize == 0 {
+			b := newMemoryBlock(l.blockLen)
+			l.push(b)
 			l.newOpTimes++
 		}
 
-		f := l.blockList.Front()
+		f := l.front()
 
 		select {
 		case b := <-l.recylChan:
@@ -108,28 +159,28 @@ func (l *memoryBlockList) workCoroutine() {
 				}
 
 				b.reset()
-				l.blockList.PushFront(b)
+				l.push(b)
 
 				timeout.Reset(memoryBlockCleanUpTime)
 			}
-		case l.allocChan <- f.Value.(*MemoryBlock):
+		case l.allocChan <- f:
 			{ // 分配操作
 				if !timeout.Stop() {
 					<-timeout.C
 				}
 
-				l.blockList.Remove(f)
+				l.pop(f)
 
 				timeout.Reset(memoryBlockCleanUpTime)
 			}
 		case <-timeout.C: // 空闲时段进行回收
 			{
-				b := l.blockList.Front()
+				b := l.front()
 				for b != nil {
-					n := b.Next()
-					if time.Since(b.Value.(*MemoryBlock).allocT) > memoryBlockHoldTime {
-						l.blockList.Remove(b)
-						b.Value = nil
+					n := b.next()
+					if time.Since(b.allocT) > memoryBlockHoldTime {
+						l.pop(b)
+						b = nil
 					}
 					b = n
 				}
@@ -142,12 +193,23 @@ func (l *memoryBlockList) workCoroutine() {
 func newMemBlockList(blockSize int) *memoryBlockList {
 	l := new(memoryBlockList)
 
-	l.blockSize = blockSize
-	l.blockList = list.New()
+	l.blockLen = blockSize
+
+	l.listRoot = newMemoryBlock(l.blockLen)
+	l.listRoot.nextBlock = l.listRoot
+	l.listRoot.prevBlock = l.listRoot
+	l.listSize = 0
 
 	// 创建内存分配和回收管道
 	l.allocChan = make(chan *MemoryBlock)
 	l.recylChan = make(chan *MemoryBlock)
+
+	// 预先分配内存块
+	l.preallocs = 10
+	for i := 0; i < l.preallocs; i++ {
+		b := newMemoryBlock(l.blockLen)
+		l.push(b)
+	}
 
 	go l.workCoroutine()
 
@@ -209,6 +271,8 @@ func (mp *MemoryPool) Recycle(b *MemoryBlock) bool {
 		blockList.recycle(b)
 		return true
 	}
+
+	fmt.Println("not recycle!")
 
 	return false
 }
