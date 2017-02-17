@@ -29,12 +29,16 @@ func RecvDataFromConn(conn net.Conn, buff []byte, size int) (recvd int, result b
 }
 
 var tempPool = NewMemoryPool()
+var defaultPackHeaderSize = 2
 
 // SocketStream receives complete protocol packages into recv channel and sends complete protocol packages from send channel.
 type SocketStream struct {
-	sockConn net.Conn
-	recvChan chan *MemoryBlock
-	sendChan chan *MemoryBlock
+	sockConn       net.Conn
+	recvChan       chan *MemoryBlock
+	sendChan       chan *MemoryBlock
+	packHeaderSize int
+	recvChanLength int
+	sendChanLength int
 }
 
 // NewSocketStream creates a new SocketStream instance.
@@ -48,10 +52,21 @@ func NewSocketStream(conn net.Conn) *SocketStream {
 	ss.sockConn = conn
 	ss.recvChan = make(chan *MemoryBlock, 100)
 	ss.sendChan = make(chan *MemoryBlock, 100)
+	ss.packHeaderSize = defaultPackHeaderSize
 
 	go ss.recvCoroutine()
 
 	return ss
+}
+
+// SetPackHeaderSize sets the package header size.
+func (ss *SocketStream) SetPackHeaderSize(packHeaderSize int) {
+	ss.packHeaderSize = packHeaderSize
+}
+
+// GetPackHeaderSize returns the package header size.
+func (ss *SocketStream) GetPackHeaderSize() int {
+	return ss.packHeaderSize
 }
 
 // Close :
@@ -77,15 +92,17 @@ func (ss *SocketStream) recvCoroutine() {
 
 	for {
 		// 先读出包头
-		header, ok := tempPool.Allocate(4)
+		header, ok := tempPool.Allocate(ss.packHeaderSize)
 		if !ok {
 			// err
 		}
 
-		n, ok := RecvDataFromConn(ss.sockConn, header.Buffer, 4)
-		if !ok || n != 4 {
+		n, ok := RecvDataFromConn(ss.sockConn, header.Buffer, ss.packHeaderSize)
+		if !ok || n != ss.packHeaderSize {
 			// err
 		}
+
+		//binary.Read
 		// 在根据包头指定数据长度读出数据包
 		for {
 
