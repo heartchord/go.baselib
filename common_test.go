@@ -37,6 +37,18 @@ func Test_BytesToNumber_2(t *testing.T) {
 	}
 }
 
+func Test_BytesToUint32_1(t *testing.T) {
+	b := []byte{0xFF, 0x7E, 0xFE, 0x7F}
+	n := BytesToUint32(b)
+
+	r := uint32(2147385087)
+	if n == r {
+		t.Log("Test_BytesToUint32_1 succeeded")
+	} else {
+		t.Error("Test_BytesToUint32_1 failed")
+	}
+}
+
 func Benchmark_BytesToNumber_1(b *testing.B) {
 	var n uint16
 	bs := []byte{0x7E, 0x7F}
@@ -52,5 +64,13 @@ func Benchmark_BytesToNumber_2(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		BytesToNumber(bs, binary.LittleEndian, &n)
+	}
+}
+
+func Benchmark_BytesToUint32_1(b *testing.B) {
+	bs := []byte{0xFF, 0x7E, 0xFE, 0x7F}
+
+	for i := 0; i < b.N; i++ {
+		BytesToUint32(bs)
 	}
 }

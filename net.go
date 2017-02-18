@@ -1,6 +1,9 @@
 package goblazer
 
-import "net"
+import (
+	"fmt"
+	"net"
+)
 
 // RecvDataFromConn recvs data with specific 'size' into 'buff'.
 //    parameter    : conn - 套接字连接, buff - 数据接收缓冲, size - 期望接收数据长度
@@ -89,23 +92,30 @@ func (ss *SocketStream) SendPackage(mb *MemoryBlock) {
 }
 
 func (ss *SocketStream) recvCoroutine() {
+	header, ok := tempPool.Allocate(ss.packHeaderSize)
+	if !ok {
+		// err
+	}
+	defer tempPool.Recycle(header)
 
 	for {
 		// 先读出包头
-		header, ok := tempPool.Allocate(ss.packHeaderSize)
-		if !ok {
-			// err
-		}
-
 		n, ok := RecvDataFromConn(ss.sockConn, header.Buffer, ss.packHeaderSize)
 		if !ok || n != ss.packHeaderSize {
 			// err
 		}
 
-		//binary.Read
-		// 在根据包头指定数据长度读出数据包
-		for {
+		packBodySize := int(BytesToUint32(header.Buffer))
+		fmt.Println(packBodySize)
 
+		body, ok := tempPool.Allocate(packBodySize)
+		if !ok {
+			// error
+		}
+
+		n, ok = RecvDataFromConn(ss.sockConn, body.Buffer, packBodySize)
+		if !ok || n != packBodySize {
+			// err
 		}
 	}
 }
