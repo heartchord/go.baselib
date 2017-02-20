@@ -16,7 +16,7 @@ func RecvDataFromConn(conn net.Conn, buff []byte, size int) (recvd int, result b
 
 	torecv := size // 还需收取数据总字节数
 	for torecv > 0 {
-		b := buff[recvd:]
+		b := buff[recvd : recvd+torecv] // 剩余空间
 		n, err := conn.Read(b)
 		if err != nil { // 读取数据错误
 			result = false
@@ -25,6 +25,32 @@ func RecvDataFromConn(conn net.Conn, buff []byte, size int) (recvd int, result b
 
 		recvd += n
 		torecv -= n
+	}
+
+	result = true
+	return
+}
+
+// SendDataToConn sends data with specific 'size' into 'buff'.
+//    parameter    : conn - 套接字连接, buff - 数据发送缓冲, size - 期望发送数据长度
+//    return value : sent - 发送数据长度, ret - 执行结果，如果发生错误，返回false
+func SendDataToConn(conn net.Conn, buff []byte, size int) (sent int, result bool) {
+	if size < 0 || len(buff) < size { // 如果期望长度为负或数据接发送缓存不够
+		result = false
+		return
+	}
+
+	tosend := size // 还需发送数据总字节数
+	for tosend > 0 {
+		b := buff[sent : sent+tosend] // 剩余空间
+		n, err := conn.Write(b)
+		if err != nil { // 写入数据错误
+			result = false
+			return
+		}
+
+		sent += n
+		tosend -= n
 	}
 
 	result = true
@@ -88,7 +114,7 @@ func (ss *SocketStream) RecvPackage() *MemoryBlock {
 
 // SendPackage :
 func (ss *SocketStream) SendPackage(mb *MemoryBlock) {
-
+	ss.sendChan <- mb
 }
 
 func (ss *SocketStream) recvCoroutine() {
@@ -117,6 +143,8 @@ func (ss *SocketStream) recvCoroutine() {
 		if !ok || n != packBodySize {
 			// err
 		}
+
+		ss.recvChan <- body
 	}
 }
 
