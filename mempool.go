@@ -37,13 +37,16 @@ var memoryBlockSizeSet = []int{
 // memoryBlockSizeNum is the length of 'memoryBlockSizeSet'
 var memoryBlockSizeNum = len(memoryBlockSizeSet)
 
-var memoryBlockHoldTime = time.Second * 30
-var memoryBlockCleanUpTime = time.Second * 5
+const memoryBlockReservedHeadSize = 8
+const memoryBlockHoldTime = time.Second * 30
+const memoryBlockCleanUpTime = time.Second * 5
 
 // MemoryBlock manages an actual memory block.
 type MemoryBlock struct {
 	Length    int              // 用户需求内存大小 <=内存块长度len(MemBlock.Buffer) <= 内存块容量cap(MemBlock.Buffer)
+	Header    []byte           // 缓冲保留头部空间
 	Buffer    []byte           // 用户数据存放缓冲
+	buffer    []byte           // 真正数据空间 = mb.Header + mb.Buffer
 	allocT    time.Time        // 内存块分配时间戳
 	nextBlock *MemoryBlock     // 下一个内存块
 	prevBlock *MemoryBlock     // 上一个内存块
@@ -61,7 +64,10 @@ func (b *MemoryBlock) next() *MemoryBlock {
 func newMemoryBlock(blockSize int) *MemoryBlock {
 	b := new(MemoryBlock)
 
-	b.Buffer = make([]byte, blockSize)
+	blockSize += memoryBlockReservedHeadSize
+	b.buffer = make([]byte, blockSize)
+	b.Header = b.buffer[0:memoryBlockReservedHeadSize]
+	b.Buffer = b.buffer[memoryBlockReservedHeadSize:blockSize]
 	b.Length = 0
 	b.allocT = time.Now()
 
@@ -140,8 +146,6 @@ func (l *memoryBlockList) allocate() *MemoryBlock {
 
 // workCoroutine is responsible to allocate, recycle and abandon memory blocks
 func (l *memoryBlockList) workCoroutine() {
-	timeout := time.NewTimer(memoryBlockCleanUpTime)
-
 	for {
 		if l.listSize == 0 {
 			b := newMemoryBlock(l.blockLen)
@@ -154,37 +158,12 @@ func (l *memoryBlockList) workCoroutine() {
 		select {
 		case b := <-l.recylChan:
 			{ // 回收操作
-				if !timeout.Stop() {
-					<-timeout.C
-				}
-
 				b.reset()
 				l.push(b)
-
-				timeout.Reset(memoryBlockCleanUpTime)
 			}
 		case l.allocChan <- f:
 			{ // 分配操作
-				if !timeout.Stop() {
-					<-timeout.C
-				}
-
 				l.pop(f)
-
-				timeout.Reset(memoryBlockCleanUpTime)
-			}
-		case <-timeout.C: // 空闲时段进行回收
-			{
-				b := l.front()
-				for b != nil {
-					n := b.next()
-					if time.Since(b.allocT) > memoryBlockHoldTime {
-						l.pop(b)
-						b = nil
-					}
-					b = n
-				}
-				timeout.Reset(memoryBlockCleanUpTime)
 			}
 		}
 	}
@@ -201,11 +180,11 @@ func newMemBlockList(blockSize int) *memoryBlockList {
 	l.listSize = 0
 
 	// 创建内存分配和回收管道
-	l.allocChan = make(chan *MemoryBlock)
-	l.recylChan = make(chan *MemoryBlock)
+	l.allocChan = make(chan *MemoryBlock, 10)
+	l.recylChan = make(chan *MemoryBlock, 10)
 
 	// 预先分配内存块
-	l.preallocs = 10
+	l.preallocs = 0
 	for i := 0; i < l.preallocs; i++ {
 		b := newMemoryBlock(l.blockLen)
 		l.push(b)
@@ -260,14 +239,14 @@ func (mp *MemoryPool) Allocate(requiredSize int) (*MemoryBlock, bool) {
 
 // Recycle :
 func (mp *MemoryPool) Recycle(b *MemoryBlock) bool {
-	c := cap(b.Buffer) // 容量
-	l := len(b.Buffer) // 长度
+	c := cap(b.buffer) // 容量
+	l := len(b.buffer) // 长度
 
 	if l != c { // 非法内存块
 		return false
 	}
 
-	if blockList, ok := mp.blockListMap[l]; ok {
+	if blockList, ok := mp.blockListMap[l-memoryBlockReservedHeadSize]; ok {
 		blockList.recycle(b)
 		return true
 	}

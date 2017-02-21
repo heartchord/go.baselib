@@ -1,7 +1,6 @@
 package goblazer
 
 import (
-	"math/rand"
 	"testing"
 )
 
@@ -14,19 +13,23 @@ func Test_MemoryPool(t *testing.T) {
 	}
 }
 
+var testmp = NewMemoryPool()
+
 func Benchmark_MemoryPool(b *testing.B) {
-	b.StopTimer()
-
-	mp := NewMemoryPool()
 	var mb *MemoryBlock
-
-	b.StartTimer()
-
 	for i := 0; i < b.N; i++ {
-		n := rand.Intn(64 * 1024)
-		mb, _ = mp.Allocate(n)
-		mp.Recycle(mb)
+		mb, _ = testmp.Allocate(1024)
+		if mb != nil {
+		}
+		//testmp.Recycle(mb)
 	}
+}
 
-	//mp.Statistics()
+func Benchmark_BuiltinAlloc(b *testing.B) {
+	var mb []byte
+	for i := 0; i < b.N; i++ {
+		mb = make([]byte, 1024)
+		if len(mb) != 0 {
+		}
+	}
 }
