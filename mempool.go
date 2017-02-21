@@ -47,6 +47,7 @@ type MemoryBlock struct {
 	Header    []byte           // 缓冲保留头部空间
 	Buffer    []byte           // 用户数据存放缓冲
 	buffer    []byte           // 真正数据空间 = mb.Header + mb.Buffer
+	flag      int              // 是否在使用中
 	allocT    time.Time        // 内存块分配时间戳
 	nextBlock *MemoryBlock     // 下一个内存块
 	prevBlock *MemoryBlock     // 上一个内存块
