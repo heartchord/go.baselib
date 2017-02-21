@@ -4,7 +4,7 @@ package goblazer
 
 import (
 	"fmt"
-	"time"
+	"sync"
 )
 
 // memoryBlockSizeSet holds all sizes of memory block with fixed length.
@@ -38,8 +38,6 @@ var memoryBlockSizeSet = []int{
 var memoryBlockSizeNum = len(memoryBlockSizeSet)
 
 const memoryBlockReservedHeadSize = 8
-const memoryBlockHoldTime = time.Second * 30
-const memoryBlockCleanUpTime = time.Second * 5
 
 // MemoryBlock manages an actual memory block.
 type MemoryBlock struct {
@@ -48,7 +46,6 @@ type MemoryBlock struct {
 	Buffer    []byte           // 用户数据存放缓冲
 	buffer    []byte           // 真正数据空间 = mb.Header + mb.Buffer
 	flag      int              // 是否在使用中
-	allocT    time.Time        // 内存块分配时间戳
 	nextBlock *MemoryBlock     // 下一个内存块
 	prevBlock *MemoryBlock     // 上一个内存块
 	blockList *memoryBlockList // 所属内存块链
@@ -70,7 +67,6 @@ func newMemoryBlock(blockSize int) *MemoryBlock {
 	b.Header = b.buffer[0:memoryBlockReservedHeadSize]
 	b.Buffer = b.buffer[memoryBlockReservedHeadSize:blockSize]
 	b.Length = 0
-	b.allocT = time.Now()
 
 	return b
 }
@@ -78,7 +74,6 @@ func newMemoryBlock(blockSize int) *MemoryBlock {
 // reset recovers memory block to initial state
 func (b *MemoryBlock) reset() {
 	b.Length = 0
-	b.allocT = time.Now()
 }
 
 // memoryBlockList stores memory block with same block-size specified by 'memBlockSizeSet'.
@@ -181,11 +176,11 @@ func newMemBlockList(blockSize int) *memoryBlockList {
 	l.listSize = 0
 
 	// 创建内存分配和回收管道
-	l.allocChan = make(chan *MemoryBlock, 10)
-	l.recylChan = make(chan *MemoryBlock, 10)
+	l.allocChan = make(chan *MemoryBlock, 99)
+	l.recylChan = make(chan *MemoryBlock, 99)
 
 	// 预先分配内存块
-	l.preallocs = 10
+	l.preallocs = 100
 	for i := 0; i < l.preallocs; i++ {
 		b := newMemoryBlock(l.blockLen)
 		l.push(b)

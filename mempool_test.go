@@ -25,7 +25,6 @@ func Benchmark_MemoryPool(b *testing.B) {
 	}
 }
 
-/*
 func Benchmark_BuiltinAlloc(b *testing.B) {
 	var mb []byte
 	for i := 0; i < b.N; i++ {
@@ -34,4 +33,3 @@ func Benchmark_BuiltinAlloc(b *testing.B) {
 		}
 	}
 }
-*/
