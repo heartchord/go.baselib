@@ -21,7 +21,7 @@ func Benchmark_MemoryPool(b *testing.B) {
 		mb, _ = testmp.Allocate(1024)
 		if mb != nil {
 		}
-		//testmp.Recycle(mb)
+		testmp.Recycle(mb)
 	}
 }
 

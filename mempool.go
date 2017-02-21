@@ -184,7 +184,7 @@ func newMemBlockList(blockSize int) *memoryBlockList {
 	l.recylChan = make(chan *MemoryBlock, 10)
 
 	// 预先分配内存块
-	l.preallocs = 0
+	l.preallocs = 10
 	for i := 0; i < l.preallocs; i++ {
 		b := newMemoryBlock(l.blockLen)
 		l.push(b)
