@@ -90,6 +90,7 @@ type memoryBlockList struct {
 }
 
 func (l *memoryBlockList) front() *MemoryBlock {
+	sync.Pool
 	if l.listSize == 0 {
 		return nil
 	}
