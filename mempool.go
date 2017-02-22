@@ -2,10 +2,7 @@
 
 package goblazer
 
-import (
-	"fmt"
-	"sync"
-)
+import "fmt"
 
 // memoryBlockSizeSet holds all sizes of memory block with fixed length.
 var memoryBlockSizeSet = []int{
