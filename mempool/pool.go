@@ -5,6 +5,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"unsafe"
+
+	"github.com/heartchord/goblazer/racedetect"
 )
 
 // Pool implements a generic object pool, based on sync.Pool(/Go/src/sync/pool.go).
