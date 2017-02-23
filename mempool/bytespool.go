@@ -10,15 +10,15 @@ import (
 
 // defaultBytesBlockSizeSet defines all sizes of bytes-block with fixed-length.
 var defaultBytesBlockSizeSet = []int{
-	/*
-		1 * 8,    // 8     bytes
-		2 * 8,    // 16    bytes
-		4 * 8,    // 32    bytes
-		8 * 8,    // 64    bytes
-		16 * 8,   // 128   bytes
-		32 * 8,   // 256   bytes
-		64 * 8,   // 512   bytes
-	*/
+
+	1 * 8,  // 8     bytes
+	2 * 8,  // 16    bytes
+	4 * 8,  // 32    bytes
+	8 * 8,  // 64    bytes
+	16 * 8, // 128   bytes
+	32 * 8, // 256   bytes
+	64 * 8, // 512   bytes
+
 	1 * 1024, // 1024  bytes(1  KB)
 	/*
 		2 * 1024,  // 2048  bytes(2  KB)

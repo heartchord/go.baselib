@@ -3,14 +3,14 @@ package mempool
 import "testing"
 
 func Benchmark_BytesPool_1(b *testing.B) {
-	b.StopTimer()
-	bp := newLocalBytesPool()
-	b.StartTimer()
+	//b.StopTimer()
+	//bp := newLocalBytesPool()
+	//b.StartTimer()
 
 	for i := 0; i < b.N; i++ {
-		bb := bp.getPrivate(1024)
-		bp.putPrivate(bb)
-		//getIndex(1024)
+		//bb := bp.getPrivate(1024)
+		//bp.putPrivate(bb)
+		getIndex(1024)
 	}
 }
 
