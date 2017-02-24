@@ -1,6 +1,7 @@
 package mempool
 
 import (
+	"fmt"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -30,7 +31,7 @@ type localPool struct {
 // NewPool creates a new PCachedPool.
 func NewPool(localPoolCap int, newFunc NewFunc) *Pool {
 	if localPoolCap <= 0 {
-		panic("Pool.localPoolCap must be greater than 0")
+		panic(fmt.Sprintf("[NewPool error] expected localPoolCap > 0, got localPoolCap = %d", localPoolCap))
 	}
 
 	procs := runtime.GOMAXPROCS(0)

@@ -3,12 +3,126 @@
 package mempool
 
 import (
+	"runtime"
 	"sync"
 	"testing"
 )
 
 func testNewFunc() interface{} {
 	return 1234567890
+}
+
+func Test_Pool(t *testing.T) {
+	p := NewPool(2, nil)
+
+	x := p.Get()
+	if x != nil {
+		t.Fatalf("expected nil, got %v", x)
+	}
+
+	p.Put(nil)
+	p.Put(100)
+	p.Put(200)
+	p.Put(300)
+
+	v0 := p.Get()
+	if i0 := v0.(int); i0 != 100 {
+		t.Fatalf("expected 100, got %v", i0)
+	}
+
+	v1 := p.Get()
+	if i1 := v1.(int); i1 != 200 {
+		t.Fatalf("expected 200, got %v", i1)
+	}
+
+	v2 := p.Get()
+	if v2 != nil {
+		t.Fatalf("expected nil, got %v", v2)
+	}
+}
+
+func Test_PoolNew(t *testing.T) {
+	p := NewPool(2, testNewFunc)
+
+	x := p.Get()
+	if i := x.(int); i != 1234567890 {
+		t.Fatalf("expected 1234567890, got %v", i)
+	}
+}
+
+func Test_PoolReset(t *testing.T) {
+	p := NewPool(2, nil)
+
+	p.Put(20)
+	p.Reset()
+
+	v0 := p.Get()
+	if v0 != nil {
+		t.Fatalf("expected nil, got %v", v0)
+	}
+}
+
+func Test_PoolStress(t *testing.T) {
+	const P = 10
+	N := int(1e6)
+	if testing.Short() {
+		N /= 100
+	}
+
+	p := NewPool(100, nil)
+	done := make(chan bool)
+
+	for i := 0; i < P; i++ {
+		go func() {
+			var v interface{}
+			for j := 0; j < N; j++ {
+				if v == nil {
+					v = 0
+				}
+
+				p.Put(v)
+				v = p.Get()
+				if v != nil && v.(int) != 0 {
+					t.Fatalf("expected 0, got %v", v)
+				}
+			}
+			done <- true
+		}()
+	}
+
+	for i := 0; i < P; i++ {
+		<-done
+	}
+}
+
+func Test_PoolPChanged(t *testing.T) {
+	const P = 10
+	N := int(1e4)
+	numCPU := runtime.GOMAXPROCS(1)
+	p := NewPool(100, nil)
+	runtime.GOMAXPROCS(numCPU)
+
+	done := make(chan bool)
+	for i := 0; i < P; i++ {
+		go func() {
+			var v interface{}
+			for j := 0; j < N; j++ {
+				if v == nil {
+					v = 0
+				}
+				p.Put(v)
+				v = p.Get()
+				if v != nil && v.(int) != 0 {
+					t.Fatalf("expected 0, got %v", v)
+				}
+			}
+			done <- true
+		}()
+	}
+
+	for i := 0; i < P; i++ {
+		<-done
+	}
 }
 
 func Benchmark_Pool(b *testing.B) {
