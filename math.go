@@ -20,23 +20,27 @@ func BinarySearchIntsEQ(s []int, v int) (idx int) {
 }
 
 // BinarySearchIntsGE searches the 'idx' of first element in slice 's' where s[idx] >= v. The slice 's' must be sorted in ascending order.
+//     If not found, the 'idx' will be set to -1.
 func BinarySearchIntsGE(s []int, v int) (idx int) {
 	idx = -1
 	num := len(s)
 	low, high := 0, num
 
-	for low < high {
-		mid := (low + high) >> 1 // mid ≤ mid < high
-		if s[mid] < v {          // 这里说明s[low]到s[mid]之间所有数都比v小
-			low = mid + 1
-		} else { // 这里说明s[mid]到s[high]之间所有数都比v大，且s[mid]是第一个比v大的数
-			high = mid
+	if v <= s[num-1] { // 切片中肯定有一个比v大的数
+		for low < high {
+			mid := (low + high) >> 1 // mid ≤ mid < high
+			if s[mid] < v {          // 这里说明s[low]到s[mid]之间所有数都比v小
+				low = mid + 1
+			} else { // 这里说明s[mid]到s[high]之间所有数都比v大，且s[mid]是第一个比v大的数
+				high = mid
+			}
+		}
+
+		if low != num {
+			idx = low
 		}
 	}
 
-	if low != num {
-		idx = low
-	}
 	return
 }
 
