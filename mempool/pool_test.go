@@ -14,6 +14,7 @@ func testNewFunc() interface{} {
 
 func Test_Pool(t *testing.T) {
 	p := NewPool(2, nil)
+	p.EnableStats()
 
 	x := p.Get()
 	if x != nil {
@@ -39,19 +40,24 @@ func Test_Pool(t *testing.T) {
 	if v2 != nil {
 		t.Fatalf("expected nil, got %v", v2)
 	}
+
+	p.GetStats().PrintAllInfo()
 }
 
 func Test_PoolNew(t *testing.T) {
 	p := NewPool(2, testNewFunc)
+	p.EnableStats()
 
 	x := p.Get()
 	if i := x.(int); i != 1234567890 {
 		t.Fatalf("expected 1234567890, got %v", i)
 	}
+	p.GetStats().PrintAllInfo()
 }
 
 func Test_PoolReset(t *testing.T) {
 	p := NewPool(2, nil)
+	p.EnableStats()
 
 	p.Put(20)
 	p.Reset()
@@ -60,6 +66,7 @@ func Test_PoolReset(t *testing.T) {
 	if v0 != nil {
 		t.Fatalf("expected nil, got %v", v0)
 	}
+	p.GetStats().PrintAllInfo()
 }
 
 func Test_PoolStress(t *testing.T) {
@@ -70,6 +77,7 @@ func Test_PoolStress(t *testing.T) {
 	}
 
 	p := NewPool(100, nil)
+	p.EnableStats()
 	done := make(chan bool)
 
 	for i := 0; i < P; i++ {
@@ -93,6 +101,7 @@ func Test_PoolStress(t *testing.T) {
 	for i := 0; i < P; i++ {
 		<-done
 	}
+	p.GetStats().PrintAllInfo()
 }
 
 func Test_PoolPChanged(t *testing.T) {
@@ -100,6 +109,7 @@ func Test_PoolPChanged(t *testing.T) {
 	N := int(1e4)
 	numCPU := runtime.GOMAXPROCS(1)
 	p := NewPool(100, nil)
+	p.EnableStats()
 	runtime.GOMAXPROCS(numCPU)
 
 	done := make(chan bool)
@@ -123,6 +133,7 @@ func Test_PoolPChanged(t *testing.T) {
 	for i := 0; i < P; i++ {
 		<-done
 	}
+	p.GetStats().PrintAllInfo()
 }
 
 func Benchmark_Pool(b *testing.B) {

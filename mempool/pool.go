@@ -18,6 +18,7 @@ type Pool struct {
 	localPoolNum uintptr        // the number of localPool set. it equals to runtime.GOMAXPROCS(0).
 	localPoolCap int            // the capacity of each localPool. len(localPool.shared) + 1(localPool.private) <= localPoolCap
 	newFunc      NewFunc        // the new function to create a new object when none is in all localPools.
+	stats        PoolStats      // the pool statistics.
 }
 
 // localPool holds all appendixes  belonged to Per-P-Pool .
@@ -45,6 +46,21 @@ func NewPool(localPoolCap int, newFunc NewFunc) *Pool {
 	}
 }
 
+// GetStats copies from p.stats to make sure the statistics data won't be change by outside unexpectedly.
+func (p *Pool) GetStats() PoolStats {
+	return p.stats
+}
+
+// EnableStats opens statistics behavior.
+func (p *Pool) EnableStats() {
+	p.stats.Enabled = true
+}
+
+// DisableStats stops statistics behavior.
+func (p *Pool) DisableStats() {
+	p.stats.Enabled = false
+}
+
 // Reset the pool to initialized state.
 func (p *Pool) Reset() {
 	procs := runtime.GOMAXPROCS(0)
@@ -70,6 +86,9 @@ func (p *Pool) Get() interface{} {
 	l.private = nil
 	syncRuntimeProcUnpin()
 	if x != nil {
+		if p.stats.Enabled {
+			atomic.AddInt64(&p.stats.GetOkTimes, 1)
+		}
 		return x
 	}
 
@@ -83,6 +102,9 @@ func (p *Pool) Get() interface{} {
 	l.Unlock()
 
 	if x != nil {
+		if p.stats.Enabled {
+			atomic.AddInt64(&p.stats.GetOkTimes, 1)
+		}
 		return x
 	}
 
@@ -103,6 +125,9 @@ func (p *Pool) Put(x interface{}) {
 	l := p.pin()
 	if l == nil { // can't find P's localPool, GOMAXPROCS(0) may be chaged, so just call newFunc to create a new object.
 		syncRuntimeProcUnpin()
+		if p.stats.Enabled {
+			atomic.AddInt64(&p.stats.PutDiscardTimes, 1)
+		}
 		return
 	}
 
@@ -114,6 +139,9 @@ func (p *Pool) Put(x interface{}) {
 	syncRuntimeProcUnpin()
 
 	if x == nil {
+		if p.stats.Enabled {
+			atomic.AddInt64(&p.stats.PutOkTimes, 1)
+		}
 		return
 	}
 
@@ -124,6 +152,14 @@ func (p *Pool) Put(x interface{}) {
 		x = nil
 	}
 	l.Unlock()
+
+	if p.stats.Enabled {
+		if x == nil {
+			atomic.AddInt64(&p.stats.PutOkTimes, 1)
+		} else {
+			atomic.AddInt64(&p.stats.PutDiscardTimes, 1)
+		}
+	}
 }
 
 // getSlow trys to steal one object from other procs or call newFunc to create a new one.
@@ -152,12 +188,19 @@ func (p *Pool) getSlow() (x interface{}) {
 		return
 	}
 
+	if p.stats.Enabled {
+		atomic.AddInt64(&p.stats.GetOkTimes, 1)
+		atomic.AddInt64(&p.stats.GetFromOtherPTimes, 1)
+	}
 	return
 }
 
 func (p *Pool) getByNewFunc() (x interface{}) {
 	if p.newFunc != nil {
 		x = p.newFunc()
+		if p.stats.Enabled {
+			atomic.AddInt64(&p.stats.GetByNewTimes, 1)
+		}
 	}
 	return
 }
