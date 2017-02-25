@@ -51,14 +51,18 @@ func (bb *BytesBlock) Buf() []byte {
 }
 
 // AddRef increases the reference counter. If you want to share this BytesBlock with others, don't forget invoking this function.
-func (bb *BytesBlock) AddRef() {
-	if atomic.AddInt32(&bb.ref, 1) <= 0 { // error
+func (bb *BytesBlock) AddRef() int32 {
+	ref := atomic.AddInt32(&bb.ref, 1)
+
+	if ref <= 0 { // error
 		panic(fmt.Sprintf("[BytesBlock.AddRef error] expected BytesBlock.ref > 0, got BytesBlock.ref = %d", bb.ref))
 	}
+
+	return ref
 }
 
 // DecRef decreases the reference counter. If you want to give back current BytesBlock to BytesPool, just invoke this function.
-func (bb *BytesBlock) DecRef() {
+func (bb *BytesBlock) DecRef() int32 {
 	ref := atomic.AddInt32(&bb.ref, -1)
 
 	if ref < 0 {
@@ -68,6 +72,8 @@ func (bb *BytesBlock) DecRef() {
 	if ref == 0 {
 		bb.owner.put(bb)
 	}
+
+	return ref
 }
 
 // BytesPool holds all BytesBlocks with specified block size. The BytesBlocks with same size will be placed in one Pool.
