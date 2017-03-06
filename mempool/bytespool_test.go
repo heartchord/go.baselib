@@ -87,7 +87,16 @@ func Test_Clear(t *testing.T) {
 	ResetDefaultBytesPool()
 }
 
-func Benchmark_BytesPool(b *testing.B) {
+func Benchmark_BytesPool_32(b *testing.B) {
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			buf := GetFromDefaultBytesPool(32)
+			buf.DecRef()
+		}
+	})
+}
+
+func Benchmark_BytesPool_1024(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			buf := GetFromDefaultBytesPool(1024)
@@ -105,11 +114,24 @@ func Benchmark_BytesPoolLargeSize(b *testing.B) {
 	})
 }
 
-func Benchmark_BuiltinAlloc(b *testing.B) {
+func Benchmark_BuiltinAlloc_1024(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		var dummy []byte
 		for pb.Next() {
 			buf := make([]byte, 1024)
+			dummy = buf // 防止buf的分配被优化掉
+		}
+		if len(dummy) > 0 {
+			dummy[0] = 0
+		}
+	})
+}
+
+func Benchmark_BuiltinAlloc_32(b *testing.B) {
+	b.RunParallel(func(pb *testing.PB) {
+		var dummy []byte
+		for pb.Next() {
+			buf := make([]byte, 32)
 			dummy = buf // 防止buf的分配被优化掉
 		}
 		if len(dummy) > 0 {

@@ -148,7 +148,7 @@ func Benchmark_Pool(b *testing.B) {
 	})
 }
 
-func BenchmarkBuiltinPool(b *testing.B) {
+func Benchmark_BuiltinPool(b *testing.B) {
 	var p sync.Pool
 	var v interface{}
 	v = 1

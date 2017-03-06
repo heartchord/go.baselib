@@ -23,7 +23,7 @@ type Buffer struct {
 	byBlock *BytesBlock // bytes block
 }
 
-// NewBuffer :
+// NewBuffer create a new instance of Buffer.
 func NewBuffer(bp *BytesPool, reservedSize uint32, requiredSize uint32) *Buffer {
 	if bp == nil {
 		panic("[NewBuffer] expected a BytesPool instance, got nil!")
@@ -37,7 +37,7 @@ func NewBuffer(bp *BytesPool, reservedSize uint32, requiredSize uint32) *Buffer 
 	}
 }
 
-// AddRef :
+// AddRef increases the reference counter. If you want to share this Buffer with others, don't forget invoking this function.
 func (b *Buffer) AddRef() int32 {
 	if b.byBlock == nil {
 		panic("[Buffer.AddRef error] expected Buffer.byBlock != nil, got Buffer.byBlock nil")
@@ -45,7 +45,7 @@ func (b *Buffer) AddRef() int32 {
 	return b.byBlock.AddRef()
 }
 
-// DecRef :
+// DecRef decreases the reference counter. If you want to give back current Buffer to BytesPool, just invoke this function.
 func (b *Buffer) DecRef() int32 {
 	if b.byBlock == nil {
 		panic("[Buffer.AddRef error] expected Buffer.byBlock != nil, got Buffer.byBlock nil")
@@ -55,53 +55,53 @@ func (b *Buffer) DecRef() int32 {
 	if ref == int32(0) {
 		b.byBlock = nil // avoid leaking
 	}
+
 	return ref
 }
 
-// GetOriginalSize :
-func (b *Buffer) GetOriginalSize() uint32 {
+// OriSize returns the original size of buffer.
+func (b *Buffer) OriSize() uint32 {
 	return b.oriSize
 }
 
-// GetReservedSize :
-func (b *Buffer) GetReservedSize() uint32 {
+// ResSize returns the reserved size of buffer.
+func (b *Buffer) ResSize() uint32 {
 	return b.resSize
 }
 
-// GetCurrentSize :
-func (b *Buffer) GetCurrentSize() uint32 {
+// CurSize returns the current size of buffer.
+func (b *Buffer) CurSize() uint32 {
 	return b.curSize
 }
 
-// SetSize :
-func (b *Buffer) SetSize(newSize uint32) bool {
+// SetSize changes the current size of buffer.
+func (b *Buffer) SetSize(newSize uint32) {
 	if newSize == 0 {
 		panic(fmt.Sprintf("[Buffer.SetSize error] expected newSize > 0, got newSize = %d", newSize))
 	}
 
 	if newSize > b.oriSize {
-		return false
+		panic(fmt.Sprintf("[Buffer.SetSize error] expected newSize <= Buffer.oriSize, got newSize = %d", newSize))
 	}
 
 	atomic.SwapUint32(&b.curSize, newSize)
-	return true
 }
 
-// ResetSize :
+// ResetSize resets the current size of buffer to original.
 func (b *Buffer) ResetSize() {
 	atomic.SwapUint32(&b.curSize, b.oriSize)
 }
 
-// GetReservedBuf :
-func (b *Buffer) GetReservedBuf() []byte {
+// ResBuf returns the reserved space of the buffer.
+func (b *Buffer) ResBuf() []byte {
 	if b.resSize > uint32(cap(b.byBlock.buf)) {
-		panic("[Buffer.GetReservedBuf error] Buffer.resSize is too large!")
+		panic("[Buffer.ResBuf error] Buffer.resSize is too large!")
 	}
 	return b.byBlock.buf[0:b.resSize]
 }
 
-// GetUserBuf :
-func (b *Buffer) GetUserBuf() []byte {
+// Buf returns the user space of the buffer.
+func (b *Buffer) Buf() []byte {
 	if b.resSize+b.oriSize > uint32(cap(b.byBlock.buf)) {
 		panic("[Buffer.GetBuf error] Buffer.resSize or Buffer.oriSize is too large!")
 	}
