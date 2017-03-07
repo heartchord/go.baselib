@@ -152,6 +152,7 @@ func checkAllClasses(classes []int) bool {
 //	return
 //}
 
+// getClassIdx will find the appropriate index of BytesPool.classes by 'requiredSize'.
 func (bp *BytesPool) getClassIdx(requiredSize int) (idx int) {
 	idx = -1
 	if requiredSize <= bp.classes[len(bp.classes)-1] {

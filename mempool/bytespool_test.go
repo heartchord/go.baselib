@@ -105,24 +105,11 @@ func Benchmark_BytesPool_1024(b *testing.B) {
 	})
 }
 
-func Benchmark_BytesPoolLargeSize(b *testing.B) {
+func Benchmark_BytesPool_LargeSize(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			buf := GetFromDefaultBytesPool(65536 + 1)
 			buf.DecRef()
-		}
-	})
-}
-
-func Benchmark_BuiltinAlloc_1024(b *testing.B) {
-	b.RunParallel(func(pb *testing.PB) {
-		var dummy []byte
-		for pb.Next() {
-			buf := make([]byte, 1024)
-			dummy = buf // 防止buf的分配被优化掉
-		}
-		if len(dummy) > 0 {
-			dummy[0] = 0
 		}
 	})
 }
@@ -140,7 +127,20 @@ func Benchmark_BuiltinAlloc_32(b *testing.B) {
 	})
 }
 
-func Benchmark_BuiltinAllocLargeSize(b *testing.B) {
+func Benchmark_BuiltinAlloc_1024(b *testing.B) {
+	b.RunParallel(func(pb *testing.PB) {
+		var dummy []byte
+		for pb.Next() {
+			buf := make([]byte, 1024)
+			dummy = buf // 防止buf的分配被优化掉
+		}
+		if len(dummy) > 0 {
+			dummy[0] = 0
+		}
+	})
+}
+
+func Benchmark_BuiltinAlloc_LargeSize(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		var dummy []byte
 		for pb.Next() {
